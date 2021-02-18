@@ -4,6 +4,12 @@ zustand style mobx api
 
 ## Use
 
+Make sure you depend on react and mobx
+
+```
+npm i -S react mobx mobz
+```
+
 #### Global Store
 
 ```ts
