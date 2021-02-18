@@ -12,7 +12,7 @@ npm i -S react mobx mobz
 
 #### Global Store
 
-```ts
+```tsx
 import create from 'mobz'
 
 
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 #### Local Store
 
-```ts
+```tsx
 import { define } from 'mobz'
 
 
