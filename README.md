@@ -1,2 +1,83 @@
 # Mobz
  
+zustand style mobx api
+
+## Use
+
+#### Global Store
+
+```ts
+import create from 'mobz'
+
+
+const store = create({
+    count: 0,
+    inc() { this.count++ }
+})
+
+// or
+
+const store = create<{ count: number, inc: () => void }>(self => ({
+    count: 0,
+    inc() { self().count++ }
+}))
+
+
+function Inc() {
+    const count = store(s => s.count) // computed and auto rerender
+
+    // or
+
+    const count = store.count // with out auth rerender， you need observer()
+
+    const inc = store(s => s.inc) // First layer will auto bind this
+
+    return <div>
+        <div>{count}</div>
+        <button onClick={inc}>Inc</button>
+    </div>
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    render(<div id='app'>
+        <Inc></Inc>
+    </div>, document.querySelector('#app'))
+})
+```
+
+#### Local Store
+
+```ts
+import create from 'mobz'
+
+
+const useCounter = define(() => ({
+    count: 0,
+    inc() { this.count++ }
+}))
+
+// or
+
+const useCounter = define<{ count: number, inc: () => void }>(self => ({
+    count: 0,
+    inc() { self().count++ }
+}))
+
+
+function Inc() {
+    const store = useCounter() // new a local store
+    const count = store(s => s.count)
+    const inc = store(s => s.inc)
+
+    return <div>
+        <div>{count}</div>
+        <button onClick={inc}>Inc</button>
+    </div>
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    render(<div id='app'>
+        <Inc></Inc>
+    </div>, document.querySelector('#app'))
+})
+```

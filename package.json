@@ -1,7 +1,7 @@
 {
   "name": "mobz",
   "version": "0.1.0",
-  "description": "zustand style mobx",
+  "description": "zustand style mobx api",
   "main": "./dist/mobz.cjs.js",
   "module": "./dist/mobz.es.js",
   "browser": "./dist/mobz.umd.min.js",
