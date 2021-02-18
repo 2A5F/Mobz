@@ -1,6 +1,6 @@
 # Mobz
  
-zustand style mobx api
+[zustand](https://github.com/pmndrs/zustand) style [mobx](https://github.com/mobxjs/mobx) api
 
 ## Use
 
