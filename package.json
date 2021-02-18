@@ -2,7 +2,17 @@
   "name": "mobz",
   "version": "0.1.0",
   "description": "zustand style mobx",
-  "main": "index.js",
+  "main": "./dist/mobz.cjs.js",
+  "module": "./dist/mobz.es.js",
+  "browser": "./dist/mobz.umd.min.js",
+  "umd::main": "./dist/mobz.umd.js",
+  "types": "./type/mobz.d.ts",
+  "typings": "./type/mobz.d.ts",
+  "files": [
+    "src/*.ts",
+    "type/**/*.d.ts",
+    "dist/**/*.js"
+  ],
   "scripts": {
     "build": "rollup -c",
     "build:w": "rollup -cw",
@@ -16,7 +26,8 @@
   "keywords": [
     "mobx",
     "mobz",
-    "zustand"
+    "zustand",
+    "react"
   ],
   "author": "2A5F",
   "license": "MIT",
