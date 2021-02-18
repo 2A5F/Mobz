@@ -1,5 +1,8 @@
 # Mobz
- 
+
+[![NPM](https://img.shields.io/npm/v/mobz)](https://www.npmjs.com/package/mobz)
+![MIT](https://img.shields.io/github/license/2A5F/Mobz)
+
 [zustand](https://github.com/pmndrs/zustand) style [mobx](https://github.com/mobxjs/mobx) api
 
 ## Use
