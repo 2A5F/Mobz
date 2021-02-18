@@ -1,0 +1,29 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "build",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: build",
+			"detail": "rollup"
+		},
+		{
+			"type": "npm",
+			"script": "build:w",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: build:w",
+			"detail": "rollup -cw"
+		},
+		{
+			"type": "npm",
+			"script": "build:type",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: build:type",
+			"detail": "tsc -p tsconfig.d.json"
+		}
+	]
+}

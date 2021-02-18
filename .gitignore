@@ -1,0 +1,10 @@
+/node_modules/
+/es/
+/type/
+/cjs/
+/umd/
+/dist/
+/test/*.js
+/coverage/
+/mobz.js
+/mobz.mjs
