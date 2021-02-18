@@ -26,8 +26,29 @@ export function useComputedRaw<T>(getter: () => T, options?: IComputedValueOptio
     return useState(() => computed(getter, options))[0]
 }
 
-export function useAutoEffect(effect: () => void, options?: IAutorunOptions) {
-    useEffect(() => autorun(effect, options), [])
+export type IAutoEffectCtx = {
+    setStopSignal: (s: () => Promise<void>) => void
+}
+export type IAutoEffectOptions = {
+    stopSignal?: () => Promise<void>
+}
+export function useAutoEffect(effect: (ctx: IAutoEffectCtx) => any, options?: IAutorunOptions & IAutoEffectOptions) {
+    useEffect(() => {
+        let stopSignal = options?.stopSignal
+        const ctx: IAutoEffectCtx = { 
+            setStopSignal(s) {
+                stopSignal = s
+            }
+        }
+        const d = autorun(() => effect(ctx), options)
+        if (typeof stopSignal === 'function') {
+            (async () => {
+                await stopSignal()
+                d()
+            })();
+        }
+        return d
+    }, [])
 }
 
 export function useReaction<T>(data: () => T, effect: (next: T, now: T) => void, options?: IReactionOptions) {

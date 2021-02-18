@@ -1,6 +1,6 @@
 import React from 'react'
 import { render } from 'react-dom'
-import create, { define } from '../mobz'
+import create, { define, useAutoEffect } from '../mobz'
 
 // const store = create({
 //     count: 0,
@@ -26,6 +26,15 @@ function Inc() {
     //const store = useCounter()
     const count = store(s => s.count)
     const inc = store(s => s.inc)
+
+    useAutoEffect(() => {
+        console.log(store.count)
+    }, {
+        stopSignal: () => new Promise(res => setTimeout(() => {
+            console.log('timeout')
+            res()
+        }, 5000))
+    })
 
     return <div>
         <div>{count}</div>
