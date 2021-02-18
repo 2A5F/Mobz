@@ -28,7 +28,7 @@ function Inc() {
 
     // or
 
-    const count = store.count // with out auth rerender， you need observer()
+    const count = store.count // with out auto rerender， you need observer()
 
     const inc = store(s => s.inc) // First layer will auto bind this
 
