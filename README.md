@@ -30,7 +30,7 @@ function Inc() {
 
     const count = store.count // with out auto rerender， you need observer()
 
-    const inc = store(s => s.inc) // First layer will auto bind this
+    const inc = store(s => s.inc) // first level will auto bind this
 
     return <div>
         <div>{count}</div>
