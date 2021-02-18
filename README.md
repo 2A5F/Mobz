@@ -72,9 +72,29 @@ const useCounter = define<{ count: number, inc: () => void }>(self => ({
     inc() { self().count++ }
 }))
 
+//or 
+
+const useCounter = define(() => (a: number) => ({
+    count: a,
+    inc() { this.count++ }
+}))
+
+// or
+
+const useCounter = define<{ count: number, inc: () => void }, [a: number]>(self => (a) => ({
+    count: a,
+    inc() { self().count++ }
+}))
+
 
 function Inc() {
     const store = useCounter() // new a local store
+
+    // or
+
+    const store = useCounter(1)
+
+
     const count = store(s => s.count)
     const inc = store(s => s.inc)
 

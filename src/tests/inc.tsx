@@ -7,23 +7,23 @@ import create, { define, useAutoEffect } from '../mobz'
 //     inc() { this.count++ }
 // })
 
-const store = create<{ count: number, inc: () => void }>(self => ({
-    count: 0,
-    inc() { self().count++ }
-}))
-
-// const useCounter = define(() => ({
-//     count: 0,
-//     inc() { this.count++ }
-// }))
-
-// const useCounter = define<{ count: number, inc: () => void }>(self => ({
+// const store = create<{ count: number, inc: () => void }>(self => ({
 //     count: 0,
 //     inc() { self().count++ }
 // }))
 
+// const useCounter = define(() => (a: number) => ({
+//     count: a,
+//     inc() { this.count++ }
+// }))
+
+const useCounter = define<{ count: number, inc: () => void }, [a: number]>(self => (a) => ({
+    count: a,
+    inc() { self().count++ }
+}))
+
 function Inc() {
-    //const store = useCounter()
+    const store = useCounter(1)
     const count = store(s => s.count)
     const inc = store(s => s.inc)
 

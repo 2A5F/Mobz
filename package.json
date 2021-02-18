@@ -1,6 +1,6 @@
 {
   "name": "mobz",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "zustand style mobx api",
   "main": "./dist/mobz.cjs.js",
   "module": "./dist/mobz.es.js",
@@ -14,7 +14,7 @@
     "dist/**/*.js"
   ],
   "scripts": {
-    "build": "rollup -c",
+    "build": "rollup -c && tsc -p tsconfig.d.json",
     "build:w": "rollup -cw",
     "build:type": "tsc -p tsconfig.d.json",
     "test": "echo \"Error: no test specified\" && exit 1"

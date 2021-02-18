@@ -160,8 +160,16 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
     })
 }
 
-export function define<T extends object>(def: CreateFn<T>): () => T & UseStore<T> {
-    return () => useState(() => create<T>(def))[0]
+export function define<T extends object>(def: (self: () => T) => NoFunc<T>): () => T & UseStore<T>
+export function define<T extends object, A extends any[]>(def: (self: () => T) => (...args: A) => T): (...args: A) => T & UseStore<T>
+export function define<T extends object, A extends any[]>(def: (self: () => T) => NoFunc<T> | ((...args: A) => T)): (...args: A) => T & UseStore<T> {
+    return (...args: any) => useState(() => create<T>(self => {
+        const r = def(self)
+        if (typeof r === 'function') {
+            return (r as any)(...args)
+        }
+        return r
+    }))[0]
 }
 
 export default create;
