@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
 #### Local Store
 
 ```ts
-import create from 'mobz'
+import { define } from 'mobz'
 
 
 const useCounter = define(() => ({
