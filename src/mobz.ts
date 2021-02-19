@@ -28,6 +28,7 @@ export function useComputedRaw<T>(getter: () => T, options?: IComputedValueOptio
 
 export type IAutoEffectCtx = {
     setStopSignal: (s: () => Promise<void>) => void
+    first: boolean
 }
 export type IAutoEffectOptions = {
     stopSignal?: () => Promise<void>
@@ -35,12 +36,19 @@ export type IAutoEffectOptions = {
 export function useAutoEffect(effect: (ctx: IAutoEffectCtx) => any, options?: IAutorunOptions & IAutoEffectOptions) {
     useEffect(() => {
         let stopSignal = options?.stopSignal
-        const ctx: IAutoEffectCtx = { 
+        let first = true
+        const ctx: IAutoEffectCtx = {
             setStopSignal(s) {
                 stopSignal = s
+            },
+            get first() {
+                return first
             }
         }
-        const d = autorun(() => effect(ctx), options)
+        const d = autorun(() => {
+            effect(ctx)
+            first = false
+        }, options)
         if (typeof stopSignal === 'function') {
             (async () => {
                 await stopSignal()
@@ -102,8 +110,8 @@ function buildActions<T extends object>(obj: T) {
 }
 
 function bindActions(obj: any, actions: MobzAction<any>[]) {
-    for (const action of actions) {
-        action.fn = action.fn.bind(obj)
+    for (const a of actions) {
+        a.fn = a.fn.bind(obj)
     }
 }
 
