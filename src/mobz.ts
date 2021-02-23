@@ -151,15 +151,19 @@ function bindActions(obj: any, actions: MobzAction<any>[]) {
     }
 }
 
-export type CreateFn<S, R = S> = (self: () => S) => R
+export type SetStore<S> = ((obj: DeepPartial<S>, mode?: MergeMode) => void) & ((obj: (store: S) => DeepPartial<S>, mode?: MergeMode) => void)
+export type CreateFn<S, R = S> = (self: () => S, merge: SetStore<S>) => R
 
 /** Create a store */
 export function create<T extends object>(obj: CreateFn<T>): T & UseStore<T>
 /** Create a store */
 export function create<T extends object>(obj: NoFunc<T>): T & UseStore<T>
 export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseStore<T> {
-    const self = () => store
-    if (typeof obj === 'function') obj = (obj as any)(self)
+    function self() { return store }
+    function set(obj: DeepPartial<T> | ((store: T) => DeepPartial<T>), mode?: MergeMode) {
+        return merge(store, typeof obj === 'function' ? obj(store) : obj, mode)
+    }
+    if (typeof obj === 'function') obj = (obj as any)(self, set)
     const actions = buildActions(obj)
     const store = observable(obj) as any
     bindActions(store, actions)
@@ -213,8 +217,8 @@ export function define<T extends object, A extends any[]>(def: CreateFn<T, (...a
 export function define<T extends object, A extends any[]>(def: CreateFn<T, NoFunc<T> | ((...args: A) => T)>): (...args: A) => T & UseStore<T> {
     return function (...args: any) {
         function build() {
-            return create<T>(self => {
-                const r = def(self)
+            return create<T>((self, set) => {
+                const r = def(self, set)
                 if (typeof r === 'function') {
                     return (r as any)(...args)
                 }
