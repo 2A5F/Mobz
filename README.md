@@ -141,6 +141,30 @@ document.addEventListener('DOMContentLoaded', () => {
 })
 ```
 
+#### Merge
+
+```tsx
+import create, { merge } from 'mobz'
+
+const store = create({
+    count: 0,
+    inc() { 
+        merge(this, { count: this.count + 1 })
+    }
+})
+
+// or
+
+const store = create<{ count: number, inc: () => void }>((self, set) => ({
+    count: 0,
+    inc() {
+        set({ count: self().count + 1 })
+        // or
+        set(s => ({ count: s.count + 1 }))
+    }
+}))
+```
+
 ## Hooks
 
 hook version of mobx basic api
