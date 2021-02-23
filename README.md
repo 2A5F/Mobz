@@ -111,6 +111,36 @@ document.addEventListener('DOMContentLoaded', () => {
 })
 ```
 
+#### Define A Global Store
+
+```tsx
+import { define } from 'mobz'
+
+
+const Counter = define(() => ({
+    count: 0,
+    inc() { this.count++ }
+}))
+
+const store = new Counter(1) // Use new to construct outside the component
+
+function Inc() {
+    const count = store(s => s.count)
+    const inc = store(s => s.inc)
+
+    return <div>
+        <div>{count}</div>
+        <button onClick={inc}>Inc</button>
+    </div>
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    render(<div id='app'>
+        <Inc></Inc>
+    </div>, document.querySelector('#app'))
+})
+```
+
 ## Hooks
 
 hook version of mobx basic api

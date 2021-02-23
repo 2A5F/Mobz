@@ -22,6 +22,8 @@ const useCounter = define<{ count: number, inc: () => void }, [a: number]>(self 
     inc() { self().count++ }
 }))
 
+//const store = new useCounter(-1)
+
 function Inc() {
     const store = useCounter(1)
     const count = store(s => s.count)
