@@ -2,27 +2,68 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { CreateObservableOptions, observable, computed, IComputedValueOptions, autorun, IAutorunOptions, reaction, IReactionOptions, IObservableArray, ObservableSet, ObservableMap, AnnotationsMap, runInAction, IObservableValue, IComputedValue } from 'mobx'
 
+const plainObjectString = Object.toString()
+
+function isObject(value: unknown): value is Object {
+    return value !== null && typeof value === "object"
+}
+
+function isPlainObject(value: unknown) {
+    if (!isObject(value)) return false
+    const proto = Object.getPrototypeOf(value)
+    if (proto == null) return true
+    return proto.constructor?.toString() === plainObjectString
+}
+
+function* concat<T>(a: Iterable<T>, b: Iterable<T>): Iterable<T> {
+    yield* a
+    yield* b
+}
+
 type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function doMergeReplace(target: any, obj: any) {
-    for (const k of Reflect.ownKeys(target)) {
+    for (const k of new Set(concat(Reflect.ownKeys(target), Reflect.ownKeys(obj)))) {
         if (k in obj) target[k] = obj[k]
         else delete target[k]
     }
 }
 
-/** Default is `merge`  
- * `true` == `replace`   */
-export type MergeMode = boolean | 'merge' | 'replace'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function doMergeDeep(target: any, obj: any) {
+    obj = Object.assign({}, obj)
+    for (const k of Reflect.ownKeys(obj)) {
+        const v = obj[k]
+        if (isPlainObject(v)) {
+            const t = target[k]
+            if (isPlainObject(t)) {
+                if (t !== v) {
+                    doMergeDeep(t, v)
+                    continue
+                }
+            }
+        }
+        target[k] = v
+    }
+}
+
+/** Default is `deep`  
+ * `true` == `replace`  
+ * `false` == `deep` */
+export type MergeMode = boolean | 'replace' | 'shallow' | 'deep'
 
 /** Merge object content to target */
 export function merge<T>(target: T, obj: DeepPartial<T>, mode?: MergeMode): void {
     if (obj === target) return
     if (mode === true || mode === 'replace') {
         runInAction(() => doMergeReplace(target, obj))
-    } else {
+    } else if (mode === 'shallow') {
         runInAction(() => Object.assign(target, obj))
+    } else if (mode == null || mode === false || mode === 'deep') {
+        runInAction(() => doMergeDeep(target, obj))
+    } else {
+        throw new TypeError(`Unknow merge mode ${JSON.stringify(mode)}`)
     }
 }
 
