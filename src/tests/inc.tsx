@@ -1,5 +1,6 @@
 import React from 'react'
 import { render } from 'react-dom'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import create, { define, useAutoEffect } from '../mobz'
 
 // const store = create({

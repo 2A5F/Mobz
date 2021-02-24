@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/ban-types */
 import { useEffect, useReducer, useRef, useState } from 'react'
-import { CreateObservableOptions, observable, computed, IComputedValueOptions, autorun, IAutorunOptions, reaction, IReactionOptions, IObservableArray, ObservableSet, ObservableMap, AnnotationsMap, runInAction } from 'mobx'
+import { CreateObservableOptions, observable, computed, IComputedValueOptions, autorun, IAutorunOptions, reaction, IReactionOptions, IObservableArray, ObservableSet, ObservableMap, AnnotationsMap, runInAction, IObservableValue, IComputedValue } from 'mobx'
 
 type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function doMergeReplace(target: any, obj: any) {
     for (const k of Reflect.ownKeys(target)) {
         if (k in obj) target[k] = obj[k]
@@ -15,7 +17,7 @@ function doMergeReplace(target: any, obj: any) {
 export type MergeMode = boolean | 'merge' | 'replace'
 
 /** Merge object content to target */
-export function merge<T>(target: T, obj: DeepPartial<T>, mode?: MergeMode) {
+export function merge<T>(target: T, obj: DeepPartial<T>, mode?: MergeMode): void {
     if (obj === target) return
     if (mode === true || mode === 'replace') {
         runInAction(() => doMergeReplace(target, obj))
@@ -32,28 +34,30 @@ export function useObservable<T>(v: () => Set<T>, options?: CreateObservableOpti
 export function useObservable<K, V>(v: () => Map<K, V>, options?: CreateObservableOptions): ObservableMap<K, V>
 /** HookApi of `observable()` */
 export function useObservable<T extends object>(v: () => T, decorators?: AnnotationsMap<T, never>, options?: CreateObservableOptions): T
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
 export function useObservable(v: () => any, ...args: any): any {
     return useState(() => observable(v(), ...args))[0]
 }
 
 /** Boxed state, need `observer()` */
-export function useBoxState<T>(v: T | ((...args: any[]) => T), options?: CreateObservableOptions): [T, (v: T) => void] {
+export function useBoxState<T>(v: T | ((...args: unknown[]) => T), options?: CreateObservableOptions): [T, (v: T) => void] {
     const b = useBox(v, options)
     return [b.get(), (v: T) => b.set(v)]
 }
 
 /** HookApi of `observable.box()` */
-export function useBox<T>(v: T | ((...args: any[]) => T), options?: CreateObservableOptions) {
+export function useBox<T>(v: T | ((...args: unknown[]) => T), options?: CreateObservableOptions): IObservableValue<T> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return useState(() => observable.box<T>(typeof v === 'function' ? (v as any)() : v, options))[0]
 }
 
 /** Computed value, need `observer()` */
-export function useComputed<T>(getter: () => T, options?: IComputedValueOptions<T>) {
+export function useComputed<T>(getter: () => T, options?: IComputedValueOptions<T>): T {
     return useComputedRaw(getter, options).get()
 }
 
 /** HookApi of `computed()` */
-export function useComputedRaw<T>(getter: () => T, options?: IComputedValueOptions<T>) {
+export function useComputedRaw<T>(getter: () => T, options?: IComputedValueOptions<T>): IComputedValue<T> {
     return useState(() => computed(getter, options))[0]
 }
 
@@ -66,7 +70,7 @@ export type IAutoEffectOptions = {
     stopSignal?: () => Promise<void>
 }
 /** HookApi of `autorun()` */
-export function useAutoEffect(effect: (ctx: IAutoEffectCtx) => any, options?: IAutorunOptions & IAutoEffectOptions) {
+export function useAutoEffect(effect: (ctx: IAutoEffectCtx) => void, options?: IAutorunOptions & IAutoEffectOptions): void {
     useEffect(() => {
         let stopSignal = options?.stopSignal
         let first = true
@@ -93,12 +97,12 @@ export function useAutoEffect(effect: (ctx: IAutoEffectCtx) => any, options?: IA
 }
 
 /** HookApi of `reaction()` */
-export function useReaction<T>(data: () => T, effect: (next: T, now: T) => void, options?: IReactionOptions) {
+export function useReaction<T>(data: () => T, effect: (next: T, now: T) => void, options?: IReactionOptions): void {
     useEffect(() => reaction(data, effect, options), [])
 }
 
 /** Auto rerender */
-export function useAutoUpdate(o: { get(): any } | (() => void), options?: IAutorunOptions) {
+export function useAutoUpdate(o: { get(): unknown } | (() => void), options?: IAutorunOptions): void {
     const first = useRef(true)
     const [, update] = useReducer((c) => c + 1, 0)
     useAutoEffect(() => {
@@ -124,27 +128,31 @@ function useStore<T extends object, R>(store: T, selector: StoreSelector<T, R>, 
     return c.get()
 }
 
-type NoFunc<T> = T extends (...args: any[]) => any ? NoFunction : T
+type NoFunc<T> = T extends (...args: unknown[]) => unknown ? NoFunction : T
 interface NoFunction { readonly 0: unique symbol }
 
-class MobzAction<F extends (...args: any) => any> {
+class MobzAction<F extends (...args: unknown[]) => unknown> {
     constructor(public fn: F) { }
-    public invoke = ((...args: any[]) => this.fn(...args)).bind(this)
+    public invoke = ((...args: unknown[]) => this.fn(...args)).bind(this)
 }
 
 function buildActions<T extends object>(obj: T) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const actions: MobzAction<any>[] = []
     for (const key in obj) {
         const i = obj[key]
         if (typeof i === 'function') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const a = new MobzAction(i as any)
             actions.push(a)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             obj[key] = a.invoke as any
         }
     }
     return actions
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function bindActions(obj: any, actions: MobzAction<any>[]) {
     for (const a of actions) {
         a.fn = a.fn.bind(obj)
@@ -163,12 +171,14 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
     function set(obj: DeepPartial<T> | ((store: T) => DeepPartial<T>), mode?: MergeMode) {
         return merge(store, typeof obj === 'function' ? obj(store) : obj, mode)
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (typeof obj === 'function') obj = (obj as any)(self, set)
     const actions = buildActions(obj)
-    const store = observable(obj) as any
+    const store = observable(obj) as T
     bindActions(store, actions)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return new Proxy(useStore as any, {
-        apply(target, thisArg, argumentsList: [selector: StoreSelector<T, any>, options?: SelectorOptions]) {
+        apply(target, thisArg, argumentsList: [selector: StoreSelector<T, unknown>, options?: SelectorOptions]) {
             return Reflect.apply(target, thisArg, [store, ...argumentsList])
         },
         construct(target, argumentsList) {
@@ -189,19 +199,19 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
         defineProperty(_target, property, descriptor) {
             return Reflect.defineProperty(store, property, descriptor)
         },
-        ownKeys(_target) {
+        ownKeys() {
             return Reflect.ownKeys(store)
         },
-        getPrototypeOf(_target) {
+        getPrototypeOf() {
             return Reflect.getPrototypeOf(store)
         },
         setPrototypeOf(_target, prototype) {
             return Reflect.setPrototypeOf(store, prototype)
         },
-        isExtensible(_target) {
+        isExtensible() {
             return Reflect.isExtensible(store)
         },
-        preventExtensions(_target) {
+        preventExtensions() {
             return Reflect.preventExtensions(store)
         },
         getOwnPropertyDescriptor(_target, prop) {
@@ -213,13 +223,14 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
 /** Define a store constructor or hook */
 export function define<T extends object>(def: CreateFn<T, NoFunc<T>>): (() => T & UseStore<T>) & (new () => T & UseStore<T>)
 /** Define a store constructor or hook */
-export function define<T extends object, A extends any[]>(def: CreateFn<T, (...args: A) => T>): ((...args: A) => T & UseStore<T>) & (new (...args: A) => T & UseStore<T>)
-export function define<T extends object, A extends any[]>(def: CreateFn<T, NoFunc<T> | ((...args: A) => T)>): (...args: A) => T & UseStore<T> {
-    return function (...args: any) {
+export function define<T extends object, A extends unknown[]>(def: CreateFn<T, (...args: A) => T>): ((...args: A) => T & UseStore<T>) & (new (...args: A) => T & UseStore<T>)
+export function define<T extends object, A extends unknown[]>(def: CreateFn<T, NoFunc<T> | ((...args: A) => T)>): (...args: A) => T & UseStore<T> {
+    return function (...args: unknown[]) {
         function build() {
             return create<T>((self, set) => {
                 const r = def(self, set)
                 if (typeof r === 'function') {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     return (r as any)(...args)
                 }
                 return r
