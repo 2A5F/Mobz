@@ -1,3 +1,4 @@
+export * from 'mobx'
 /* eslint-disable @typescript-eslint/ban-types */
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { CreateObservableOptions, observable, computed, IComputedValueOptions, autorun, IAutorunOptions, reaction, IReactionOptions, IObservableArray, ObservableSet, ObservableMap, AnnotationsMap, runInAction, IObservableValue, IComputedValue } from 'mobx'
@@ -66,6 +67,8 @@ export function merge<T>(target: T, obj: DeepPartial<T>, mode?: MergeMode): void
         throw new TypeError(`Unknow merge mode ${JSON.stringify(mode)}`)
     }
 }
+
+export type Merge = typeof merge
 
 /** HookApi of `observable()` */
 export function useObservable<T>(v: () => T[], options?: CreateObservableOptions): IObservableArray<T>
@@ -200,8 +203,9 @@ function bindActions(obj: any, actions: MobzAction<any>[]) {
     }
 }
 
+export type GetStore<S> = () => S
 export type SetStore<S> = ((obj: DeepPartial<S>, mode?: MergeMode) => void) & ((obj: (store: S) => DeepPartial<S>, mode?: MergeMode) => void)
-export type CreateFn<S, R = S> = (self: () => S, merge: SetStore<S>) => R
+export type CreateFn<S, R = S> = (self: GetStore<S>, merge: SetStore<S>) => R
 
 /** Create a store */
 export function create<T extends object>(obj: CreateFn<T>): T & UseStore<T>
