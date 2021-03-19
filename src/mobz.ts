@@ -70,6 +70,49 @@ export function merge<T>(target: T, obj: DeepPartial<T>, mode?: MergeMode): void
 
 export type Merge = typeof merge
 
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never
+
+type IntersectionToObj<T> = T extends object ? { [K in keyof T]: T[K] } : never
+
+/** Combine multiple objects  
+ * ```ts
+ * joint(a, b, c)
+ * // Can be understood as
+ * { ...a, ...b, ...c }
+ * // Actually
+ * merge(merge(merge({}, a), b), c)
+ * ```
+ */
+export function joint<T extends object[]>(...objs: T): T extends [] ? {} : IntersectionToObj<UnionToIntersection<T[number]>> {
+    const target: unknown = { }
+    for (const o of objs) {
+        merge(target, o)
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return target as any
+}
+
+/** Combine multiple objects  
+ * ```ts
+ * jointMode(mode, a, b, c)
+ * // Can be understood as
+ * { ...a, ...b, ...c }
+ * // Actually
+ * merge(merge(merge({}, a, mode), b, mode), c, mode)
+ * ```
+ */
+ export function jointMode<T extends object[]>(mode: MergeMode, ...objs: T): T extends [] ? {} : IntersectionToObj<UnionToIntersection<T[number]>> {
+    const target: unknown = { }
+    for (const o of objs) {
+        merge(target, o, mode)
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return target as any
+}
+
+
 /** HookApi of `observable()` */
 export function useObservable<T>(v: () => T[], options?: CreateObservableOptions): IObservableArray<T>
 /** HookApi of `observable()` */
@@ -288,10 +331,19 @@ export function define<T extends object, A extends unknown[]>(def: CreateFn<T, N
     }
 }
 
+/** Provide template CreateFn */
+export function template<T>(def: CreateFn<T>): CreateFn<T>
+/** Provide template CreateFn */
+export function template<T, A extends unknown[]>(def: CreateFnArg<T, A>): CreateFnArg<T, A>
+/** Provide template CreateFn */
 export function template<F extends CreateFn<unknown>>(def: F): F
+/** Provide template CreateFn */
 export function template<F extends CreateFnArg<unknown, unknown[]>>(def: F): F
+/** Provide template CreateFn */
 export function template<T>(): <F extends CreateFn<T>>(def: F) => F
+/** Provide template CreateFn */
 export function template<T>(): <F extends CreateFnArg<T, unknown[]>>(def: F) => F
+/** Provide template CreateFn */
 export function template<T, A extends unknown[]>(): <F extends CreateFnArg<T, A>>(def: F) => F
 export function template(v?: unknown): unknown {
     if (v == null) return (v: unknown) => v
