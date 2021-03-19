@@ -265,10 +265,12 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
     })
 }
 
+type CreateFnArg<T, A extends unknown[]> = CreateFn<T, (...args: A) => T>
+
 /** Define a store constructor or hook */
 export function define<T extends object>(def: CreateFn<T, NoFunc<T>>): (() => T & UseStore<T>) & (new () => T & UseStore<T>)
 /** Define a store constructor or hook */
-export function define<T extends object, A extends unknown[]>(def: CreateFn<T, (...args: A) => T>): ((...args: A) => T & UseStore<T>) & (new (...args: A) => T & UseStore<T>)
+export function define<T extends object, A extends unknown[]>(def: CreateFnArg<T, A>): ((...args: A) => T & UseStore<T>) & (new (...args: A) => T & UseStore<T>)
 export function define<T extends object, A extends unknown[]>(def: CreateFn<T, NoFunc<T> | ((...args: A) => T)>): (...args: A) => T & UseStore<T> {
     return function (...args: unknown[]) {
         function build() {
@@ -284,6 +286,16 @@ export function define<T extends object, A extends unknown[]>(def: CreateFn<T, N
         if (!new.target) return useState(build)[0]
         return build()
     }
+}
+
+export function template<F extends CreateFn<unknown>>(def: F): F
+export function template<F extends CreateFnArg<unknown, unknown[]>>(def: F): F
+export function template<T>(): <F extends CreateFn<T>>(def: F) => F
+export function template<T>(): <F extends CreateFnArg<T, unknown[]>>(def: F) => F
+export function template<T, A extends unknown[]>(): <F extends CreateFnArg<T, A>>(def: F) => F
+export function template(v?: unknown): unknown {
+    if (v == null) return (v: unknown) => v
+    return v
 }
 
 export default create;
