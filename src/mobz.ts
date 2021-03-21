@@ -26,8 +26,8 @@ type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function doMergeReplace(target: any, obj: any) {
     for (const k of new Set(concat(Reflect.ownKeys(target), Reflect.ownKeys(obj)))) {
-        if (k in obj) target[k] = obj[k]
-        else delete target[k]
+        if (k in obj) runInAction(() => target[k] = obj[k])
+        else runInAction(() => delete target[k])
     }
 }
 
@@ -45,7 +45,7 @@ function doMergeDeep(target: any, obj: any) {
                 }
             }
         }
-        target[k] = v
+        runInAction(() => target[k] = v)
     }
 }
 
