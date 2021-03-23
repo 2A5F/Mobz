@@ -254,7 +254,7 @@ export interface StoreInfo<T extends object> {
     store: T,
     get: () => T,
     set: (obj: DeepPartial<T> | ((store: T) => DeepPartial<T>), mode?: MergeMode) => void
-    create: () => T
+    create?: () => T
     constructor?: CreateFn<T>,
 }
 
@@ -329,7 +329,7 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
         get: self,
         set,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        create: () => create(createFn as any),
+        create: createFn == null ? void 0 : () => create(createFn as any),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         constructor: createFn as any,
     })
