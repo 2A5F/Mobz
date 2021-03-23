@@ -86,7 +86,7 @@ type IntersectionToObj<T> = T extends object ? { [K in keyof T]: T[K] } : never
  * ```
  */
 export function joint<T extends object[]>(...objs: T): T extends [] ? {} : IntersectionToObj<UnionToIntersection<T[number]>> {
-    const target: unknown = { }
+    const target: unknown = {}
     for (const o of objs) {
         merge(target, o)
     }
@@ -103,8 +103,8 @@ export function joint<T extends object[]>(...objs: T): T extends [] ? {} : Inter
  * merge(merge(merge({}, a, mode), b, mode), c, mode)
  * ```
  */
- export function jointMode<T extends object[]>(mode: MergeMode, ...objs: T): T extends [] ? {} : IntersectionToObj<UnionToIntersection<T[number]>> {
-    const target: unknown = { }
+export function jointMode<T extends object[]>(mode: MergeMode, ...objs: T): T extends [] ? {} : IntersectionToObj<UnionToIntersection<T[number]>> {
+    const target: unknown = {}
     for (const o of objs) {
         merge(target, o, mode)
     }
@@ -250,6 +250,22 @@ export type GetStore<S> = () => S
 export type SetStore<S> = ((obj: DeepPartial<S>, mode?: MergeMode) => void) & ((obj: (store: S) => DeepPartial<S>, mode?: MergeMode) => void)
 export type CreateFn<S, R = S> = (self: GetStore<S>, merge: SetStore<S>) => R
 
+export interface StoreInfo<T extends object> {
+    store: T,
+    get: () => T,
+    set: (obj: DeepPartial<T> | ((store: T) => DeepPartial<T>), mode?: MergeMode) => void
+    create: () => T
+    constructor?: CreateFn<T>,
+}
+
+const infos = new WeakMap<object, StoreInfo<object>>()
+
+/** Reflect of Store */
+export function getStoreInfo<T extends object>(store: T): StoreInfo<T> | null {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return infos.get(store) as any ?? null
+}
+
 /** Create a store */
 export function create<T extends object>(obj: CreateFn<T>): T & UseStore<T>
 /** Create a store */
@@ -260,12 +276,14 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
         return merge(store, typeof obj === 'function' ? obj(store) : obj, mode)
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const createFn = typeof obj === 'function' ? obj : void 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (typeof obj === 'function') obj = (obj as any)(self, set)
     const actions = buildActions(obj)
     const store = observable(obj) as T
     bindActions(store, actions)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return new Proxy(useStore as any, {
+    const res = new Proxy(useStore as any, {
         apply(target, thisArg, argumentsList: [selector: StoreSelector<T, unknown>, options?: SelectorOptions]) {
             return Reflect.apply(target, thisArg, [store, ...argumentsList])
         },
@@ -306,6 +324,16 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
             return Reflect.getOwnPropertyDescriptor(store, prop)
         }
     })
+    infos.set(res, {
+        store,
+        get: self,
+        set,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        create: () => create(createFn as any),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        constructor: createFn as any,
+    })
+    return res
 }
 
 type CreateFnArg<T, A extends unknown[]> = CreateFn<T, (...args: A) => T>
