@@ -252,8 +252,9 @@ export type CreateFn<S, R = S> = (self: GetStore<S>, merge: SetStore<S>) => R
 
 export interface StoreInfo<T extends object> {
     store: T,
-    get: () => T,
-    set: (obj: DeepPartial<T> | ((store: T) => DeepPartial<T>), mode?: MergeMode) => void
+    get: GetStore<T>,
+    set: SetStore<T>
+    use: UseStore<T>,
     create?: () => T
     constructor?: CreateFn<T>,
 }
@@ -271,14 +272,14 @@ export function create<T extends object>(obj: CreateFn<T>): T & UseStore<T>
 /** Create a store */
 export function create<T extends object>(obj: NoFunc<T>): T & UseStore<T>
 export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseStore<T> {
-    function self() { return store }
+    function get() { return store }
     function set(obj: DeepPartial<T> | ((store: T) => DeepPartial<T>), mode?: MergeMode) {
         return merge(store, typeof obj === 'function' ? obj(store) : obj, mode)
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const createFn = typeof obj === 'function' ? obj : void 0
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof obj === 'function') obj = (obj as any)(self, set)
+    if (typeof obj === 'function') obj = (obj as any)(get, set)
     const actions = buildActions(obj)
     const store = observable(obj) as T
     bindActions(store, actions)
@@ -326,8 +327,9 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
     })
     infos.set(res, {
         store,
-        get: self,
-        set,
+        get, set,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        use: ((...args: unknown[]) => (useStore as any)(store, ...args)) as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         create: createFn == null ? void 0 : () => create(createFn as any),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
