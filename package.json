@@ -17,7 +17,8 @@
     "build": "rollup -c && tsc -p tsconfig.d.json",
     "build:w": "rollup -cw",
     "build:type": "tsc -p tsconfig.d.json",
-    "lint": "eslint  . --ext .ts,.tsx"
+    "lint": "eslint  . --ext .ts,.tsx",
+    "publish": "npm publish --registry http://registry.npmjs.org"
   },
   "repository": {
     "type": "git",
