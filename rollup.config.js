@@ -20,7 +20,7 @@ export default [
         ]
     },
     {
-        input: 'src/mobz.ts',
+        input: 'src/mobz.tsx',
         output: {
             file: 'dist/mobz.cjs.js',
             format: 'cjs',
@@ -32,7 +32,7 @@ export default [
         ]
     },
     {
-        input: 'src/mobz.ts',
+        input: 'src/mobz.tsx',
         output: {
             file: 'dist/mobz.umd.js',
             format: 'umd',
@@ -49,7 +49,7 @@ export default [
         ]
     },
     {
-        input: 'src/mobz.ts',
+        input: 'src/mobz.tsx',
         output: {
             file: 'dist/mobz.es.js',
             format: 'es',
@@ -62,7 +62,7 @@ export default [
     },
     
     {
-        input: 'src/mobz.ts',
+        input: 'src/mobz.tsx',
         output: {
             file: 'dist/mobz.cjs.min.js',
             format: 'cjs',
@@ -75,7 +75,7 @@ export default [
         ]
     },
     {
-        input: 'src/mobz.ts',
+        input: 'src/mobz.tsx',
         output: {
             file: 'dist/mobz.umd.min.js',
             format: 'umd',
@@ -93,7 +93,7 @@ export default [
         ]
     },
     {
-        input: 'src/mobz.ts',
+        input: 'src/mobz.tsx',
         output: {
             file: 'dist/mobz.es.min.js',
             format: 'es',

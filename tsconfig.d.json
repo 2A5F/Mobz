@@ -3,7 +3,9 @@
     "compilerOptions": {
         "declaration": true,
         "emitDeclarationOnly": true,
-        "outDir": "type"
+        "outDir": "type",
+        "jsx": "react",
+        "jsxFactory": "createElement"
     },
     "include": [
         "./src/**/*.ts",

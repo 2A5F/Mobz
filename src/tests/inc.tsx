@@ -1,4 +1,5 @@
-import React from 'react'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { createElement } from 'react'
 import { render } from 'react-dom'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import create, { define, useAutoEffect } from '../mobz'

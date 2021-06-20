@@ -1,6 +1,8 @@
 export * from 'mobx'
 /* eslint-disable @typescript-eslint/ban-types */
-import { useEffect, useReducer, useRef, useState } from 'react'
+import { useEffect, useReducer, useRef, useState, createContext, useContext, ReactNode } from 'react'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { createElement } from 'react'
 import { CreateObservableOptions, observable, computed, IComputedValueOptions, autorun, IAutorunOptions, reaction, IReactionOptions, IObservableArray, ObservableSet, ObservableMap, AnnotationsMap, runInAction, IObservableValue, IComputedValue } from 'mobx'
 
 const plainObjectString = Object.toString()
@@ -68,6 +70,7 @@ export function merge<T>(target: T, obj: DeepPartial<T>, mode?: MergeMode): void
     }
 }
 
+/** Merge type */
 export type Merge = typeof merge
 
 
@@ -148,11 +151,13 @@ export function useComputedRaw<T>(getter: () => T, options?: IComputedValueOptio
     return useState(() => computed(getter, options))[0]
 }
 
+/** Auto effect context */
 export type IAutoEffectCtx = {
     setStopSignal: (s: () => Promise<void>) => void
     /** Is it the first run */
     first: boolean
 }
+/** Auto effect options */
 export type IAutoEffectOptions = {
     stopSignal?: () => Promise<void>
 }
@@ -202,14 +207,17 @@ export function useAutoUpdate(o: { get(): unknown } | (() => void), options?: IA
     }, options)
 }
 
+/** Selector */
 export type StoreSelector<T extends object, R> = (store: T) => R
+/** Use the store */
 export type UseStore<T extends object> = <R>(selector: StoreSelector<T, R>, options?: SelectorOptions) => R
+/** Selector Options */
 export interface SelectorOptions {
     /** Enable auto rerender */
     autoUpdate: boolean
 }
 
-function useStore<T extends object, R>(store: T, selector: StoreSelector<T, R>, options?: SelectorOptions) {
+function UseStore<T extends object, R>(store: T, selector: StoreSelector<T, R>, options?: SelectorOptions) {
     const c = useComputedRaw(() => selector(store))
     if (options?.autoUpdate !== false) useAutoUpdate(c)
     return c.get()
@@ -246,20 +254,50 @@ function bindActions(obj: any, actions: MobzAction<any>[]) {
     }
 }
 
+/**  Get the store */
 export type GetStore<S> = () => S
+/** set/merge store data */
 export type SetStore<S> = ((obj: DeepPartial<S>, mode?: MergeMode) => void) & ((obj: (store: S) => DeepPartial<S>, mode?: MergeMode) => void)
+/** Create the store */
 export type CreateFn<S, R = S> = (self: GetStore<S>, merge: SetStore<S>) => R
 
+/** Context of Store */
+export interface StoreContext<T extends object> {
+    StoreProvider: (props: { value?: T, children?: ReactNode }) => JSX.Element
+    useStore: () => T
+}
+/** Context of Store */
+export interface DefinedStoreContext<T extends object> {
+    StoreProvider: (props: { value: T, children?: ReactNode }) => JSX.Element
+    useStore: () => T
+}
+
+/** Meta Info for Store */
 export interface StoreInfo<T extends object> {
-    store: T,
-    get: GetStore<T>,
-    set: SetStore<T>
-    use: UseStore<T>,
-    create?: () => T
-    constructor?: CreateFn<T>,
+    /** The store object */
+    readonly store: T
+    /** Get the store */
+    readonly get: GetStore<T>
+    /** SetMerge store data */
+    readonly set: SetStore<T>
+    /** Use the store */
+    readonly use: UseStore<T>
+    /** Recreate the store, if this store was created by CreateFn */
+    readonly create?: () => T
+    /** The CreateFn, if this store was created by CreateFn */
+    readonly constructor?: CreateFn<T>
+    /** Make a Context for this store */
+    readonly makeContext: () => StoreContext<T>
+    /** Current Context */
+    readonly context?: React.Context<T>
+    /** Raw CreateFn to define, if this store was created by define */
+    readonly defineCreate?: CreateFn<T>
+    /** The define return value, if this store was created by define */
+    readonly defined?: ((...args: unknown[]) => T & UseStore<T>) & (new (...args: unknown[]) => T & UseStore<T>)
 }
 
 const infos = new WeakMap<object, StoreInfo<object>>()
+const defineds = new WeakMap<Defined<object>, { context?: React.Context<object> }>()
 
 /** Reflect of Store */
 export function getStoreInfo<T extends object>(store: T): StoreInfo<T> | null {
@@ -267,10 +305,64 @@ export function getStoreInfo<T extends object>(store: T): StoreInfo<T> | null {
     return infos.get(store) as any ?? null
 }
 
+/** Make a Context by defined */
+export function makeStoreContext<T extends object>(defined: Defined<T>): DefinedStoreContext<T>
+/** Make a Context for store */
+export function makeStoreContext<T extends object>(store: T): StoreContext<T>
+/** Make a Context for store */
+export function makeStoreContext<T extends object>(store: T | Defined<T>): StoreContext<T> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let StoreContext: React.Context<T> = void 0 as any
+    let thestore: T
+    if (typeof store === 'function') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ctx = defineds.get(store as any)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        StoreContext = ctx?.context as any
+        if (StoreContext == null) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            StoreContext = createContext<T>(void 0 as any)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (ctx != null) ctx.context = StoreContext as any
+            StoreContext.displayName = 'StoreContext'
+        }
+    } else {
+        thestore = store
+        const info = getStoreInfo(store)
+        const defined = info?.defined
+        if (defined != null) {
+            const ctx = defineds.get(defined)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            StoreContext = ctx?.context as any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (info != null && info?.context == null) (info as any).StoreContext = StoreContext
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (StoreContext == null) StoreContext = info?.context as any
+        if (StoreContext == null) {
+            StoreContext = createContext<T>(store)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (info != null) (info as any).StoreContext = StoreContext
+            StoreContext.displayName = 'StoreContext'
+        }
+    }
+
+    function StoreProvider({ value, children }: { value?: T, children?: ReactNode }): JSX.Element {
+        return <StoreContext.Provider value={value ?? thestore}>{children}</StoreContext.Provider>
+    }
+
+    function useStore(): T {
+        return useContext(StoreContext)
+    }
+
+    return { StoreProvider, useStore }
+}
+
 /** Create a store */
 export function create<T extends object>(obj: CreateFn<T>): T & UseStore<T>
 /** Create a store */
 export function create<T extends object>(obj: NoFunc<T>): T & UseStore<T>
+/** Create a store */
 export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseStore<T> {
     function get() { return store }
     function set(obj: DeepPartial<T> | ((store: T) => DeepPartial<T>), mode?: MergeMode) {
@@ -284,7 +376,7 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
     const store = observable(obj) as T
     bindActions(store, actions)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = new Proxy(useStore as any, {
+    const res = new Proxy(UseStore as any, {
         apply(target, thisArg, argumentsList: [selector: StoreSelector<T, unknown>, options?: SelectorOptions]) {
             return Reflect.apply(target, thisArg, [store, ...argumentsList])
         },
@@ -329,25 +421,31 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
         store,
         get, set,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        use: ((...args: unknown[]) => (useStore as any)(store, ...args)) as any,
+        use: ((...args: unknown[]) => (UseStore as any)(store, ...args)) as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         create: createFn == null ? void 0 : () => create(createFn as any),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         constructor: createFn as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        makeContext: () => makeStoreContext(store) as any
     })
     return res
 }
 
 type CreateFnArg<T, A extends unknown[]> = CreateFn<T, (...args: A) => T>
 
+/** Defined store creator */
+export type Defined<T extends object, A extends unknown[] = []> = ((() => T & UseStore<T>) & (new () => T & UseStore<T>)) | ((...args: A) => T & UseStore<T>) & (new (...args: A) => T & UseStore<T>)
+
 /** Define a store constructor or hook */
 export function define<T extends object>(def: CreateFn<T, NoFunc<T>>): (() => T & UseStore<T>) & (new () => T & UseStore<T>)
 /** Define a store constructor or hook */
 export function define<T extends object, A extends unknown[]>(def: CreateFnArg<T, A>): ((...args: A) => T & UseStore<T>) & (new (...args: A) => T & UseStore<T>)
+/** Define a store constructor or hook */
 export function define<T extends object, A extends unknown[]>(def: CreateFn<T, NoFunc<T> | ((...args: A) => T)>): (...args: A) => T & UseStore<T> {
-    return function (...args: unknown[]) {
+    function defined(...args: unknown[]) {
         function build() {
-            return create<T>((self, set) => {
+            const r = create<T>((self, set) => {
                 const r = def(self, set)
                 if (typeof r === 'function') {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -355,10 +453,21 @@ export function define<T extends object, A extends unknown[]>(def: CreateFn<T, N
                 }
                 return r
             })
+            const info = infos.get(r)
+            if (info != null) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (info as any).defineCreate = def;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (info as any).defined = defined;
+            }
+            return r
         }
         if (!new.target) return useState(build)[0]
         return build()
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    defineds.set(defined as any, {})
+    return defined
 }
 
 /** Provide template CreateFn */
@@ -375,6 +484,7 @@ export function template<T>(): <F extends CreateFn<T>>(def: F) => F
 export function template<T>(): <F extends CreateFnArg<T, unknown[]>>(def: F) => F
 /** Provide template CreateFn */
 export function template<T, A extends unknown[]>(): <F extends CreateFnArg<T, A>>(def: F) => F
+/** Provide template CreateFn */
 export function template(v?: unknown): unknown {
     if (v == null) return (v: unknown) => v
     return v

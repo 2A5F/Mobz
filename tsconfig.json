@@ -7,6 +7,7 @@
         "strict": true,
         "esModuleInterop": true,
         "jsx": "react",
+        "jsxFactory": "createElement"
     },
     "include": [
         "./src/**/*.ts",
