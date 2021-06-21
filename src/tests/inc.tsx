@@ -32,7 +32,6 @@ const store = create<{ count: number, inc: () => void }>((self, set) => ({
         set({ count: self().count + 1 })
     }
 }))
-console.log({ store })
 
 function Inc() {
     //const store = useCounter(1)

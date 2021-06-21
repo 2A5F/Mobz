@@ -210,17 +210,36 @@ export function useAutoUpdate(o?: { get?: () => unknown } | (() => void), option
 /** Selector */
 export type StoreSelector<T extends object, R> = (store: T) => R
 /** Use the store */
-export type UseStore<T extends object> = <R>(selector: StoreSelector<T, R>, options?: SelectorOptions) => R
+export type UseStore<T extends object> =
+    & (<R extends object>(selector: StoreSelector<T, R>, options: SelectorOptions & { sub: true, map?: SubStoreCreateFn<T, R> }) => StoreOf<R>)
+    & (<R>(selector: StoreSelector<T, R>, options?: SelectorOptions) => R)
+
 /** The Store */
 export type StoreOf<T extends object> = T & UseStore<T>
+export type SubStoreCreateFn<S extends object, T extends object> = (parent: S, ...args: Parameters<CreateFn<T>>) => T
 /** Selector Options */
 export interface SelectorOptions {
     /** Enable auto rerender */
-    autoUpdate: boolean
+    autoUpdate?: boolean,
+    /** return a sub Store */
+    sub?: boolean
 }
 
+function UseStore<T extends object, R extends object>(store: T, selector: StoreSelector<T, R>, options: SelectorOptions & { sub: true, map?: SubStoreCreateFn<T, R> }): StoreOf<R>
+function UseStore<T extends object, R>(store: T, selector: StoreSelector<T, R>, options?: SelectorOptions): R
 function UseStore<T extends object, R>(store: T, selector: StoreSelector<T, R>, options?: SelectorOptions) {
-    const c = useComputedRaw(() => selector(store))
+    const c = useComputedRaw(() => {
+        const r = selector(store)
+        if (options != null) {
+            if (options.sub) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                if (typeof (options as any).map === 'function') return (subStore as any)(r, options.sub)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                else return (subStore as any)(r)
+            }
+        }
+        return r
+    })
     if (options?.autoUpdate !== false) useAutoUpdate(c)
     return c.get()
 }
@@ -238,7 +257,7 @@ function buildActions<T extends object>(obj: T) {
     const actions: MobzAction<any>[] = []
     for (const key in obj) {
         const i = obj[key]
-        if (typeof i === 'function') {
+        if (typeof i === 'function' && !isStore(i)) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const a = new MobzAction(i as any)
             actions.push(a)
@@ -402,6 +421,21 @@ export function makeStoreContext<T extends object>(store: StoreOf<T> | Defined<T
     return { StoreProvider, useStore }
 }
 
+function subStore<S extends object, T extends object = S>(store: NoFunc<S>, map: SubStoreCreateFn<S, T>): StoreOf<T>
+function subStore<S extends object>(store: NoFunc<S>): StoreOf<S>
+function subStore<S extends object, T extends object = S>(store: NoFunc<S>, map?: SubStoreCreateFn<S, T>) {
+    if (map != null) return create((...args) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const r = (map as any)(store, ...args)
+        if (typeof r === 'object' && r != null) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (r as any)[Symbol('parent')] = store
+        }
+        return r
+    })
+    return create(store)
+}
+
 /** Create a store */
 export function create<T extends object>(obj: CreateFn<T>): StoreOf<T>
 /** Create a store */
@@ -419,7 +453,7 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): StoreOf<
     const actions = buildActions(obj)
     const store = observable(obj) as T
     bindActions(store, actions)
-    const meta = {
+    const meta: StoreInfo<object> = {
         store,
         get, set,
         get cloned(): T { return { ...store } },
@@ -431,13 +465,20 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): StoreOf<
         constructor: createFn as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         makeContext: () => makeStoreContext(store as any) as any
-    }
+    };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const proxyTarget = Object.assign(UseStore as any, meta)
+    (meta as any).meta = meta
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const proxyTarget = Object.assign((...args: any) => (UseStore as any)(...args), { store }) as any
     Object.defineProperties(proxyTarget, {
-        'cloned': {
+        cloned: {
             get() {
                 return meta.cloned
+            }
+        },
+        context: {
+            get() {
+                return meta.context
             }
         }
     })
