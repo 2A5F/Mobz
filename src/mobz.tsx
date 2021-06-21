@@ -194,11 +194,11 @@ export function useReaction<T>(data: () => T, effect: (next: T, now: T) => void,
 }
 
 /** Auto rerender */
-export function useAutoUpdate(o: { get(): unknown } | (() => void), options?: IAutorunOptions): void {
+export function useAutoUpdate(o?: { get?: () => unknown } | (() => void), options?: IAutorunOptions): void {
     const first = useRef(true)
     const [, update] = useReducer((c) => c + 1, 0)
     useAutoEffect(() => {
-        typeof o === 'function' ? o() : o.get()
+        typeof o === 'function' ? o() : o?.get?.()
         if (first.current) {
             first.current = false
             return
@@ -211,6 +211,8 @@ export function useAutoUpdate(o: { get(): unknown } | (() => void), options?: IA
 export type StoreSelector<T extends object, R> = (store: T) => R
 /** Use the store */
 export type UseStore<T extends object> = <R>(selector: StoreSelector<T, R>, options?: SelectorOptions) => R
+/** The Store */
+export type StoreOf<T extends object> = T & UseStore<T>
 /** Selector Options */
 export interface SelectorOptions {
     /** Enable auto rerender */
@@ -263,13 +265,13 @@ export type CreateFn<S, R = S> = (self: GetStore<S>, merge: SetStore<S>) => R
 
 /** Context of Store */
 export interface StoreContext<T extends object> {
-    StoreProvider: (props: { value?: T, children?: ReactNode }) => JSX.Element
-    useStore: () => T
+    StoreProvider: (props: { value?: StoreOf<T>, children?: ReactNode }) => JSX.Element
+    useStore: () => StoreOf<T>
 }
 /** Context of Store */
 export interface DefinedStoreContext<T extends object> {
-    StoreProvider: (props: { value: T, children?: ReactNode }) => JSX.Element
-    useStore: () => T
+    StoreProvider: (props: { value: StoreOf<T>, children?: ReactNode }) => JSX.Element
+    useStore: () => StoreOf<T>
 }
 
 /** Meta Info for Store */
@@ -282,6 +284,8 @@ export interface StoreInfo<T extends object> {
     readonly set: SetStore<T>
     /** Use the store */
     readonly use: UseStore<T>
+    /** Getter for clone data (`{ ...store }`) */
+    readonly cloned: T
     /** Recreate the store, if this store was created by CreateFn */
     readonly create?: () => T
     /** The CreateFn, if this store was created by CreateFn */
@@ -293,35 +297,75 @@ export interface StoreInfo<T extends object> {
     /** Raw CreateFn to define, if this store was created by define */
     readonly defineCreate?: CreateFn<T>
     /** The define return value, if this store was created by define */
-    readonly defined?: ((...args: unknown[]) => T & UseStore<T>) & (new (...args: unknown[]) => T & UseStore<T>)
+    readonly defined?: ((...args: unknown[]) => StoreOf<T>) & (new (...args: unknown[]) => StoreOf<T>)
 }
 
 const infos = new WeakMap<object, StoreInfo<object>>()
 const defineds = new WeakMap<Defined<object>, { context?: React.Context<object> }>()
 
 /** Reflect of Store */
+export function getStoreInfo<T extends object>(store: StoreOf<T>): StoreInfo<T>
+/** Reflect of Store */
+export function getStoreInfo<T extends object>(store: T): StoreInfo<T> | null
+/** Reflect of Store */
 export function getStoreInfo<T extends object>(store: T): StoreInfo<T> | null {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return infos.get(store) as any ?? null
 }
 
+/** Reflect of Store get */
+export function storeGet<T extends object>(store: StoreOf<T>): GetStore<T>
+/** Reflect of Store get */
+export function storeGet<T extends object>(store: T): GetStore<T> | null
+/** Reflect of Store get */
+export function storeGet<T extends object>(store: T): GetStore<T> | null {
+    return getStoreInfo(store)?.get ?? null
+}
+
+/** Reflect of Store set */
+export function storeSet<T extends object>(store: StoreOf<T>): SetStore<T>
+/** Reflect of Store set */
+export function storeSet<T extends object>(store: T): SetStore<T> | null
+/** Reflect of Store set */
+export function storeSet<T extends object>(store: T): SetStore<T> | null {
+    return getStoreInfo(store)?.set ?? null
+}
+
+/** Reflect of Store use */
+export function storeUse<T extends object>(store: StoreOf<T>): UseStore<T>
+/** Reflect of Store use */
+export function storeUse<T extends object>(store: T): UseStore<T> | null
+/** Reflect of Store use */
+export function storeUse<T extends object>(store: T): UseStore<T> | null {
+    return getStoreInfo(store)?.use ?? null
+}
+
+/** Check a object is store */
+export function isStore<T extends object>(obj: T): obj is StoreOf<T>
+/** Check a object is store */
+export function isStore<T extends object>(obj: object): obj is StoreOf<T>
+/** Check a object is store */
+export function isStore<T extends object>(obj: object): obj is StoreOf<T> {
+    return infos.has(obj)
+}
+
 /** Make a Context by defined */
 export function makeStoreContext<T extends object>(defined: Defined<T>): DefinedStoreContext<T>
 /** Make a Context for store */
-export function makeStoreContext<T extends object>(store: T): StoreContext<T>
+export function makeStoreContext<T extends object>(store: StoreOf<T>): StoreContext<T>
 /** Make a Context for store */
-export function makeStoreContext<T extends object>(store: T | Defined<T>): StoreContext<T> {
+export function makeStoreContext<T extends object>(store: StoreOf<T> | Defined<T>): StoreContext<T> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let StoreContext: React.Context<T> = void 0 as any
-    let thestore: T
-    if (typeof store === 'function') {
+    let StoreContext: React.Context<StoreOf<T>> = void 0 as any
+    let thestore: StoreOf<T>
+    if (!isStore<T>(store)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const ctx = defineds.get(store as any)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         StoreContext = ctx?.context as any
         if (StoreContext == null) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            StoreContext = createContext<T>(void 0 as any)
+            StoreContext = createContext<StoreOf<T>>(void 0 as any)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if (ctx != null) ctx.context = StoreContext as any
             StoreContext.displayName = 'StoreContext'
@@ -340,18 +384,18 @@ export function makeStoreContext<T extends object>(store: T | Defined<T>): Store
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if (StoreContext == null) StoreContext = info?.context as any
         if (StoreContext == null) {
-            StoreContext = createContext<T>(store)
+            StoreContext = createContext<StoreOf<T>>(store)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if (info != null) (info as any).StoreContext = StoreContext
             StoreContext.displayName = 'StoreContext'
         }
     }
 
-    function StoreProvider({ value, children }: { value?: T, children?: ReactNode }): JSX.Element {
+    function StoreProvider({ value, children }: { value?: StoreOf<T>, children?: ReactNode }): JSX.Element {
         return <StoreContext.Provider value={value ?? thestore}>{children}</StoreContext.Provider>
     }
 
-    function useStore(): T {
+    function useStore(): StoreOf<T> {
         return useContext(StoreContext)
     }
 
@@ -359,11 +403,11 @@ export function makeStoreContext<T extends object>(store: T | Defined<T>): Store
 }
 
 /** Create a store */
-export function create<T extends object>(obj: CreateFn<T>): T & UseStore<T>
+export function create<T extends object>(obj: CreateFn<T>): StoreOf<T>
 /** Create a store */
-export function create<T extends object>(obj: NoFunc<T>): T & UseStore<T>
+export function create<T extends object>(obj: NoFunc<T>): StoreOf<T>
 /** Create a store */
-export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseStore<T> {
+export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): StoreOf<T> {
     function get() { return store }
     function set(obj: DeepPartial<T> | ((store: T) => DeepPartial<T>), mode?: MergeMode) {
         return merge(store, typeof obj === 'function' ? obj(store) : obj, mode)
@@ -375,8 +419,29 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
     const actions = buildActions(obj)
     const store = observable(obj) as T
     bindActions(store, actions)
+    const meta = {
+        store,
+        get, set,
+        get cloned(): T { return { ...store } },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        use: ((...args: unknown[]) => (UseStore as any)(store, ...args)) as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        create: createFn == null ? void 0 : () => create(createFn as any),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        constructor: createFn as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        makeContext: () => makeStoreContext(store as any) as any
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = new Proxy(UseStore as any, {
+    const proxyTarget = Object.assign(UseStore as any, meta)
+    Object.defineProperties(proxyTarget, {
+        'cloned': {
+            get() {
+                return meta.cloned
+            }
+        }
+    })
+    const res = new Proxy(proxyTarget, {
         apply(target, thisArg, argumentsList: [selector: StoreSelector<T, unknown>, options?: SelectorOptions]) {
             return Reflect.apply(target, thisArg, [store, ...argumentsList])
         },
@@ -399,7 +464,7 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
             return Reflect.defineProperty(store, property, descriptor)
         },
         ownKeys() {
-            return Reflect.ownKeys(store)
+            return [...new Set([...Reflect.ownKeys(store), 'prototype'])]
         },
         getPrototypeOf() {
             return Reflect.getPrototypeOf(store)
@@ -413,36 +478,36 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): T & UseS
         preventExtensions() {
             return Reflect.preventExtensions(store)
         },
-        getOwnPropertyDescriptor(_target, prop) {
+        getOwnPropertyDescriptor(target, prop) {
+            if (prop === 'prototype') return Reflect.getOwnPropertyDescriptor(target, prop)
             return Reflect.getOwnPropertyDescriptor(store, prop)
         }
     })
-    infos.set(res, {
-        store,
-        get, set,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        use: ((...args: unknown[]) => (UseStore as any)(store, ...args)) as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        create: createFn == null ? void 0 : () => create(createFn as any),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        constructor: createFn as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        makeContext: () => makeStoreContext(store) as any
-    })
+    infos.set(res, meta)
     return res
+}
+
+/** Create a store with hook */
+export function useStore<T extends object>(obj: CreateFn<T>): StoreOf<T>
+/** Create a store with hook */
+export function useStore<T extends object>(obj: NoFunc<T>): StoreOf<T>
+/** Create a store with hook */
+export function useStore<T extends object>(obj: NoFunc<T> | CreateFn<T>): StoreOf<T> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return useState(() => create(obj as any))[0]
 }
 
 type CreateFnArg<T, A extends unknown[]> = CreateFn<T, (...args: A) => T>
 
 /** Defined store creator */
-export type Defined<T extends object, A extends unknown[] = []> = ((() => T & UseStore<T>) & (new () => T & UseStore<T>)) | ((...args: A) => T & UseStore<T>) & (new (...args: A) => T & UseStore<T>)
+export type Defined<T extends object, A extends unknown[] = []> = ((() => StoreOf<T>) & (new () => StoreOf<T>)) | ((...args: A) => StoreOf<T>) & (new (...args: A) => StoreOf<T>)
 
 /** Define a store constructor or hook */
-export function define<T extends object>(def: CreateFn<T, NoFunc<T>>): (() => T & UseStore<T>) & (new () => T & UseStore<T>)
+export function define<T extends object>(def: CreateFn<T, NoFunc<T>>): (() => StoreOf<T>) & (new () => StoreOf<T>)
 /** Define a store constructor or hook */
-export function define<T extends object, A extends unknown[]>(def: CreateFnArg<T, A>): ((...args: A) => T & UseStore<T>) & (new (...args: A) => T & UseStore<T>)
+export function define<T extends object, A extends unknown[]>(def: CreateFnArg<T, A>): ((...args: A) => StoreOf<T>) & (new (...args: A) => StoreOf<T>)
 /** Define a store constructor or hook */
-export function define<T extends object, A extends unknown[]>(def: CreateFn<T, NoFunc<T> | ((...args: A) => T)>): (...args: A) => T & UseStore<T> {
+export function define<T extends object, A extends unknown[]>(def: CreateFn<T, NoFunc<T> | ((...args: A) => T)>): (...args: A) => StoreOf<T> {
     function defined(...args: unknown[]) {
         function build() {
             const r = create<T>((self, set) => {
