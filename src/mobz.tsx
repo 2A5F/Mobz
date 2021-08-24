@@ -28,9 +28,10 @@ type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function doMergeReplace(target: any, obj: any) {
     for (const k of new Set(concat(Reflect.ownKeys(target), Reflect.ownKeys(obj)))) {
-        if (k in obj) runInAction(() => target[k] = obj[k])
-        else runInAction(() => delete target[k])
+        if (k in obj) target[k] = obj[k]
+        else delete target[k]
     }
+    return target
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -43,12 +44,18 @@ function doMergeDeep(target: any, obj: any) {
             if (isPlainObject(t)) {
                 if (t !== v) {
                     doMergeDeep(t, v)
-                    continue
+                    console.log('x')
+                } else {
+                    target[k] = doMergeDeep({}, v)
                 }
+            } else {
+                target[k] = doMergeDeep({}, v)
             }
+        } else {
+            target[k] = v
         }
-        runInAction(() => target[k] = v)
     }
+    return target
 }
 
 /** Default is `deep`  
@@ -57,8 +64,8 @@ function doMergeDeep(target: any, obj: any) {
 export type MergeMode = boolean | 'replace' | 'shallow' | 'deep'
 
 /** Merge object content to target */
-export function merge<T>(target: T, obj: DeepPartial<T>, mode?: MergeMode): void {
-    if (obj === target) return
+export function merge<T>(target: T, obj: DeepPartial<T>, mode?: MergeMode): T {
+    if (obj === target) return target
     if (mode === true || mode === 'replace') {
         runInAction(() => doMergeReplace(target, obj))
     } else if (mode === 'shallow') {
@@ -68,6 +75,7 @@ export function merge<T>(target: T, obj: DeepPartial<T>, mode?: MergeMode): void
     } else {
         throw new TypeError(`Unknow merge mode ${JSON.stringify(mode)}`)
     }
+    return target
 }
 
 /** Merge type */
@@ -214,8 +222,11 @@ export type UseStore<T extends object> =
     & (<R extends object>(selector: StoreSelector<T, R>, options: SelectorOptions & { sub: true, map?: SubStoreCreateFn<T, R> }) => StoreOf<R>)
     & (<R>(selector: StoreSelector<T, R>, options?: SelectorOptions) => R)
 
+/** get reflect by symbol */
+export const reflect = Symbol('mobz reflect')
+
 /** The Store */
-export type StoreOf<T extends object> = T & UseStore<T>
+export type StoreOf<T extends object> = T & UseStore<T> & { [reflect]: StoreInfo<T> }
 export type SubStoreCreateFn<S extends object, T extends object> = (parent: S, ...args: Parameters<CreateFn<T>>) => T
 /** Selector Options */
 export interface SelectorOptions {
@@ -303,8 +314,12 @@ export interface StoreInfo<T extends object> {
     readonly set: SetStore<T>
     /** Use the store */
     readonly use: UseStore<T>
-    /** Getter for clone data (`{ ...store }`) */
+    /** Getter for cloned data (`{ ...store }`) */
     readonly cloned: T
+    /** Getter for deep cloned data (`{ ...store }`) */
+    readonly deepCloned: T
+    /** Getter for json data (`{ ...store }`) */
+    readonly json: string
     /** Recreate the store, if this store was created by CreateFn */
     readonly create?: () => T
     /** The CreateFn, if this store was created by CreateFn */
@@ -394,7 +409,8 @@ export function makeStoreContext<T extends object>(store: StoreOf<T> | Defined<T
         const info = getStoreInfo(store)
         const defined = info?.defined
         if (defined != null) {
-            const ctx = defineds.get(defined)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const ctx = defineds.get(defined as any)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             StoreContext = ctx?.context as any
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -458,6 +474,9 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): StoreOf<
         get, set,
         get cloned(): T { return { ...store } },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        get deepCloned(): T { return merge({}, store) as any },
+        get json(): string { return JSON.stringify(merge({}, store)) },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         use: ((...args: unknown[]) => (UseStore as any)(store, ...args)) as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         create: createFn == null ? void 0 : () => create(createFn as any),
@@ -469,19 +488,7 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): StoreOf<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (meta as any).meta = meta
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const proxyTarget = Object.assign((...args: any) => (UseStore as any)(...args), { store }) as any
-    Object.defineProperties(proxyTarget, {
-        cloned: {
-            get() {
-                return meta.cloned
-            }
-        },
-        context: {
-            get() {
-                return meta.context
-            }
-        }
-    })
+    const proxyTarget = Object.assign((...args: any) => (UseStore as any)(...args), { [reflect]: meta }) as any
     const res = new Proxy(proxyTarget, {
         apply(target, thisArg, argumentsList: [selector: StoreSelector<T, unknown>, options?: SelectorOptions]) {
             return Reflect.apply(target, thisArg, [store, ...argumentsList])
@@ -493,6 +500,7 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): StoreOf<
             return Reflect.has(store, prop)
         },
         get(_target, property, receiver) {
+            if (property === reflect) return meta
             return Reflect.get(store, property, receiver)
         },
         set(_target, property, value, receiver) {
@@ -505,7 +513,7 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): StoreOf<
             return Reflect.defineProperty(store, property, descriptor)
         },
         ownKeys() {
-            return [...new Set([...Reflect.ownKeys(store), 'prototype'])]
+            return [...new Set([...Reflect.ownKeys(store), reflect])]
         },
         getPrototypeOf() {
             return Reflect.getPrototypeOf(store)
@@ -522,7 +530,24 @@ export function create<T extends object>(obj: NoFunc<T> | CreateFn<T>): StoreOf<
         getOwnPropertyDescriptor(target, prop) {
             if (prop === 'prototype') return Reflect.getOwnPropertyDescriptor(target, prop)
             return Reflect.getOwnPropertyDescriptor(store, prop)
-        }
+        },
+        ...{
+            ['__debug_info__']: {
+                store,
+                get cloned() {
+                    return meta.cloned
+                },
+                get deepCloned() {
+                    return meta.deepCloned
+                },
+                get json() {
+                    return meta.json
+                },
+                get context() {
+                    return meta.context
+                }
+            }
+        },
     })
     infos.set(res, meta)
     return res

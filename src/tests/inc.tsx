@@ -2,7 +2,7 @@
 import { createElement } from 'react'
 import { render } from 'react-dom'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import create, { define, useAutoEffect } from '../mobz'
+import create, { define, merge, reflect, useAutoEffect } from '../mobz'
 
 // const store = create({
 //     count: 0,
@@ -30,8 +30,13 @@ const store = create<{ count: number, inc: () => void }>((self, set) => ({
     count: 0,
     inc() {
         set({ count: self().count + 1 })
-    }
+    },
+    deep: {
+        a: 1
+    },
 }))
+
+console.log('a', store, { ...store }, merge({}, store), store[reflect])
 
 function Inc() {
     //const store = useCounter(1)
