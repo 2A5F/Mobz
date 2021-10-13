@@ -44,7 +44,6 @@ function doMergeDeep(target: any, obj: any) {
             if (isPlainObject(t)) {
                 if (t !== v) {
                     doMergeDeep(t, v)
-                    console.log('x')
                 } else {
                     target[k] = doMergeDeep({}, v)
                 }
