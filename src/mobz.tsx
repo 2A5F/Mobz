@@ -3,7 +3,7 @@ export * from 'mobx'
 import { useEffect, useReducer, useRef, useState, createContext, useContext, ReactNode } from 'react'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { createElement } from 'react'
-import { CreateObservableOptions, observable, computed, IComputedValueOptions, autorun, IAutorunOptions, reaction, IReactionOptions, IObservableArray, ObservableSet, ObservableMap, AnnotationsMap, runInAction, IObservableValue, IComputedValue } from 'mobx'
+import { CreateObservableOptions, observable, computed, IComputedValueOptions, autorun, IAutorunOptions, reaction, IReactionOptions, IObservableArray, ObservableSet, ObservableMap, AnnotationsMap, runInAction, IObservableValue, IComputedValue, IReactionPublic } from 'mobx'
 
 const plainObjectString = Object.toString()
 
@@ -63,7 +63,7 @@ function doMergeDeep(target: any, obj: any) {
 export type MergeMode = boolean | 'replace' | 'shallow' | 'deep'
 
 /** Merge object content to target */
-export function merge<T>(target: T, obj: DeepPartial<T>, mode?: MergeMode): T {
+export function merge<T extends object>(target: T, obj: DeepPartial<T>, mode?: MergeMode): T {
     if (obj === target) return target
     if (mode === true || mode === 'replace') {
         runInAction(() => doMergeReplace(target, obj))
@@ -96,7 +96,7 @@ type IntersectionToObj<T> = T extends object ? { [K in keyof T]: T[K] } : never
  * ```
  */
 export function joint<T extends object[]>(...objs: T): T extends [] ? {} : IntersectionToObj<UnionToIntersection<T[number]>> {
-    const target: unknown = {}
+    const target: object = {}
     for (const o of objs) {
         merge(target, o)
     }
@@ -114,7 +114,7 @@ export function joint<T extends object[]>(...objs: T): T extends [] ? {} : Inter
  * ```
  */
 export function jointMode<T extends object[]>(mode: MergeMode, ...objs: T): T extends [] ? {} : IntersectionToObj<UnionToIntersection<T[number]>> {
-    const target: unknown = {}
+    const target: object = {}
     for (const o of objs) {
         merge(target, o, mode)
     }
@@ -196,7 +196,7 @@ export function useAutoEffect(effect: (ctx: IAutoEffectCtx) => void, options?: I
 }
 
 /** HookApi of `reaction()` */
-export function useReaction<T>(data: () => T, effect: (next: T, now: T) => void, options?: IReactionOptions): void {
+export function useReaction<T, FireImmediately extends boolean = false>(data: () => T, effect: (arg: T, prev: FireImmediately extends true ? T | undefined : T, r: IReactionPublic) => void, options?: IReactionOptions<T, FireImmediately>): void {
     useEffect(() => reaction(data, effect, options), [])
 }
 
